@@ -39,6 +39,8 @@ func todosHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		getTodo(w, r)
+	case "POST":
+		createTodo(w, r)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
@@ -56,4 +58,34 @@ func getTodo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	// todosをJSON形式に変換してwに書き込み
 	json.NewEncoder(w).Encode(todos)
+}
+
+func createTodo(w http.ResponseWriter, r *http.Request) {
+	var t Todo
+
+	// JSON形式でリクエストボディをデコード
+	err := json.NewDecoder(r.Body).Decode(&t)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// データベースにユーザーを追加
+	res, err := db.NamedExec("INSERT INTO todos (title, content) VALUES (:title, :content)", t)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 追加したユーザーのIDを取得
+	id, err := res.LastInsertId()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	t.ID = int(id)
+
+	// 追加したユーザーをJSON形式で返す
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(t)
 }
